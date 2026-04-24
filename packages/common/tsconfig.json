@@ -5,6 +5,7 @@
         "rootDir": "src",
         "declaration": true,
         "composite": true,
-        "incremental": true
-    }
+        "incremental": true 
+    },
+    "include": ["src"]
 }
