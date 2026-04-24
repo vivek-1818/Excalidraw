@@ -9,14 +9,15 @@
     "dev": "npm run build && npm run start"
   },
   "dependencies": {
+    "jsonwebtoken": "^9.0.3",
     "ws": "^8.20.0"
   },
   "devDependencies": {
+    "@repo/backend-common": "workspace:*",
+    "@repo/common": "workspace:*",
     "@repo/typescript-config": "workspace:*",
     "@types/jsonwebtoken": "^9.0.10",
-    "@types/ws": "^8.18.1",
-    "@repo/backend-common": "workspace:*",
-    "@repo/common": "workspace:*"
+    "@types/ws": "^8.18.1"
   },
   "keywords": [],
   "author": "",
