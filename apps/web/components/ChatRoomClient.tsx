@@ -29,6 +29,10 @@ export function ChatRoomClient({
           setChats((c) => [...c, { message: parseData.message }]);
         }
       };
+
+      return () => {
+        socket.onmessage = null;
+      }
     }
   }, [socket, loading, id]);
 

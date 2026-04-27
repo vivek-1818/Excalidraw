@@ -27,7 +27,7 @@ interface User {
   userId: string;
 }
 
-const users: User[] = [];
+let users: User[] = [];
 
 wss.on("connection", function connection(ws, request) {
   const url = request.url;
@@ -48,6 +48,10 @@ wss.on("connection", function connection(ws, request) {
     userId,
     rooms: [],
     ws,
+  });
+
+  ws.on("close", () => {
+    users = users.filter((user) => user.ws !== ws);
   });
 
   ws.on("message", async function message(data) {
