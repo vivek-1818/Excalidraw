@@ -23,7 +23,7 @@ function checkUser(token: string): string | null {
 
 interface User {
   ws: WebSocket;
-  rooms: string[];
+  rooms: number[];
   userId: string;
 }
 
@@ -59,7 +59,10 @@ wss.on("connection", function connection(ws, request) {
 
     if (parsedData.type == "join_room") {
       const user = users.find((x) => x.ws === ws);
-      user?.rooms.push(parsedData.roomId);
+      const roomId = Number(parsedData.roomId);
+      if (Number.isInteger(roomId)) {
+        user?.rooms.push(roomId);
+      }
     }
 
     if (parsedData.type == "leave_room") {
@@ -67,20 +70,33 @@ wss.on("connection", function connection(ws, request) {
       if (!user) {
         return;
       }
-      user.rooms = user.rooms.filter((x) => x === parsedData.room);
+      const roomId = Number(parsedData.roomId);
+      user.rooms = user.rooms.filter((x) => x !== roomId);
     }
 
     if (parsedData.type == "chat") {
-      const roomId = parsedData.roomId;
+      const roomId = Number(parsedData.roomId);
+      if (!Number.isInteger(roomId)) {
+        return;
+      }
       const message = parsedData.message;
 
-       await prismaClient.chat.create({
-        data: {
+      if (typeof message !== "string") {
+        return;
+      }
+
+      try {
+        await prismaClient.chat.create({
+          data: {
             roomId,
             message,
-            userId
-        }
-       })
+            userId,
+          },
+        });
+      } catch (e) {
+        console.error("Failed to save chat message", e);
+        return;
+      }
 
       users.forEach((user) => {
         if (user.rooms.includes(roomId)) {

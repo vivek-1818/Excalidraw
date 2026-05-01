@@ -1,27 +1,21 @@
-import { type JSX } from "react";
+import { type HTMLAttributes, type JSX } from "react";
+import { jsx } from "react/jsx-runtime";
 
 export function Card({
   className,
-  title,
   children,
-  href,
-}: {
-  className?: string;
-  title: string;
-  children: React.ReactNode;
-  href: string;
-}): JSX.Element {
+  ...props
+}: HTMLAttributes<HTMLDivElement>): JSX.Element {
   return (
-    <a
-      className={className}
-      href={`${href}?utm_source=create-turbo&utm_medium=basic&utm_campaign=create-turbo"`}
-      rel="noopener noreferrer"
-      target="_blank"
+    <div
+      className={`rounded-lg bg-card text-card-foreground shadow-sm ${className ?? ""}`}
+      {...props}
     >
-      <h2>
-        {title} <span>-&gt;</span>
-      </h2>
-      <p>{children}</p>
-    </a>
+      {children}
+    </div>
   );
 }
+
+
+
+
