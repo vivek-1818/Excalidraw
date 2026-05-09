@@ -117,4 +117,4 @@ function isShape(value: unknown): value is Shape {
 
     const shape = value as Partial<Shape>;
     return shape.type === "rect" || shape.type === "circle";
-}
+/*  */}
