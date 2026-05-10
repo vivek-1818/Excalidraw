@@ -1,35 +1,71 @@
 import { initDraw } from "@/draw";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
+import { IconButton } from "./IconButton";
+import { Circle, RectangleHorizontalIcon } from "lucide-react";
+import { Game } from "@/draw/Game";
+
+export type Tool = "circle" | "rect";
 
 export function Canvas({
-    roomId,
-    socket
+  roomId,
+  socket,
 }: {
-    roomId: string;
-    socket: WebSocket;
+  roomId: string;
+  socket: WebSocket;
 }) {
-    const canvasRef = useRef<HTMLCanvasElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [game, setGame] = useState<Game>();
+  const [selectedTool, setSelectedTool] = useState<Tool>("circle")
 
-    useEffect(() => {
-        let cleanup: (() => void) | undefined;
-        let cancelled = false;
+  useEffect(() => {
+    game?.setTool(selectedTool);
+  },[selectedTool, game])
 
-        if (canvasRef.current) {
-            initDraw(canvasRef.current, roomId, socket).then((destroy) => {
-                if (cancelled) {
-                    return;
-                }
+  useEffect(() => {
+    if(canvasRef.current){
+      const g = new Game(canvasRef.current, roomId, socket);
+      setGame(g);
 
-            });
-        }
+      return () => {
+        g.destroy();
+      }
+    }
+  }, [canvasRef]);
 
-        return () => {
-            cancelled = true;
-            cleanup?.();
-        };
-    }, [roomId, socket]);
+  return (
+    <div
+      style={{
+        height: "100vh",
+        overflow: "hidden",
+      }}
+    >
+      <canvas
+        ref={canvasRef}
+        width={window.innerWidth}
+        height={window.innerHeight}
+      ></canvas>
+      <TopBar setSelectedTool={setSelectedTool  } selectedTool={selectedTool}/>
+    </div>
+  );
+}
 
-    return <div>
-        <canvas ref={canvasRef} width={1920} height={935}></canvas>
-    </div>;
+function TopBar({selectedTool, setSelectedTool}:{
+    selectedTool: Tool,
+    setSelectedTool: (s: Tool) => void
+}) {
+  return <div
+    style={{
+      position: "fixed",
+      top: 10,
+      left: 10,
+        }}>
+        <div className="flex gap-t">
+            <IconButton onClick={() => {
+                setSelectedTool("rect")
+            }} activated={selectedTool === "rect"} icon={<RectangleHorizontalIcon/>}/>
+            <IconButton onClick={() => {
+                setSelectedTool("circle")
+            }} activated={selectedTool === "circle"} icon={<Circle/>} />
+        </div>
+  </div>;
 }
