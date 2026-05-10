@@ -1,4 +1,4 @@
-import { Tool } from "@/components/Canvas";
+import { Tool } from "@/components/CanvasToolbar";
 import { getExistingShapes, parseDrawMessage } from "./http";
 import { isPointNearShape } from "./shapes/geometry";
 import {

@@ -8,6 +8,22 @@ type CreateTextInputArgs = {
   onCancel?: () => void;
 };
 
+type TextInputState = {
+  wrapper: HTMLDivElement;
+  finish: (save: boolean) => void;
+};
+
+const textInputStates = new WeakMap<HTMLTextAreaElement, TextInputState>();
+
+function removeElement(element: HTMLElement) {
+  try {
+    element.parentNode?.removeChild(element);
+  } catch {
+    // Blur and teardown can race in React dev mode. If another path already
+    // removed the wrapper, cleanup is still complete.
+  }
+}
+
 export function createTextInput({
   clientX,
   clientY,
@@ -161,7 +177,8 @@ export function createTextInput({
     finished = true;
     const text = input.value.trim();
 
-    wrapper.remove();
+    textInputStates.delete(input);
+    removeElement(wrapper);
 
     if (save && text) {
       onSubmit(text);
@@ -196,6 +213,11 @@ export function createTextInput({
     finish(true);
   });
 
+  textInputStates.set(input, {
+    wrapper,
+    finish,
+  });
+
   wrapper.appendChild(input);
   document.body.appendChild(wrapper);
   syncBox();
@@ -209,7 +231,16 @@ export function createTextInput({
 }
 
 export function removeTextInput(input: HTMLTextAreaElement | null) {
-  const wrapper = input?.parentElement;
+  if (!input) return;
 
-  wrapper?.remove();
+  const state = textInputStates.get(input);
+  if (state) {
+    state.finish(false);
+    return;
+  }
+
+  const wrapper = input.parentElement;
+  if (wrapper) {
+    removeElement(wrapper);
+  }
 }
