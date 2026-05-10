@@ -1,9 +1,28 @@
 import { useEffect, useRef, useState } from "react";
 import { IconButton } from "./IconButton";
-import { Circle, Eraser, MousePointer2, Pencil, RectangleHorizontalIcon, Type } from "lucide-react";
+import {
+  ArrowUpRight,
+  Circle,
+  Diamond,
+  Eraser,
+  Minus,
+  MousePointer2,
+  Pencil,
+  RectangleHorizontalIcon,
+  Type,
+} from "lucide-react";
 import { Game } from "@/draw/Game";
 
-export type Tool = "select" | "circle" | "rect" | "pencil" | "text" | "eraser";
+export type Tool =
+  | "select"
+  | "circle"
+  | "rect"
+  | "line"
+  | "arrow"
+  | "diamond"
+  | "pencil"
+  | "text"
+  | "eraser";
 
 export function Canvas({
   roomId,
@@ -15,14 +34,19 @@ export function Canvas({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [game, setGame] = useState<Game>();
   const [selectedTool, setSelectedTool] = useState<Tool>("select")
+  const [selectedColor, setSelectedColor] = useState("#ffffff");
 
   useEffect(() => {
     game?.setTool(selectedTool);
   },[selectedTool, game])
 
   useEffect(() => {
+    game?.setColor(selectedColor);
+  }, [selectedColor, game]);
+
+  useEffect(() => {
     if(canvasRef.current){
-      const g = new Game(canvasRef.current, roomId, socket);
+      const g = new Game(canvasRef.current, roomId, socket, setSelectedColor);
       setGame(g);
 
       return () => {
@@ -47,23 +71,39 @@ export function Canvas({
           cursor: selectedTool === "select" ? "grab" : "crosshair",
         }}
       ></canvas>
-      <TopBar setSelectedTool={setSelectedTool  } selectedTool={selectedTool}/>
+      <TopBar
+        selectedColor={selectedColor}
+        selectedTool={selectedTool}
+        setSelectedColor={setSelectedColor}
+        setSelectedTool={setSelectedTool}
+      />
     </div>
   );
 }
 
-function TopBar({selectedTool, setSelectedTool}:{
+function TopBar({selectedColor, selectedTool, setSelectedColor, setSelectedTool}:{
+    selectedColor: string,
     selectedTool: Tool,
+    setSelectedColor: (color: string) => void,
     setSelectedTool: (s: Tool) => void
 }) {
   return <div
     style={{
       position: "fixed",
       top: 10,
-      left: 10,
+      left: "50%",
+      transform: "translateX(-50%)",
       zIndex: 30,
         }}>
-        <div className="flex gap-t">
+        <div className="flex items-center gap-2">
+            <input
+              aria-label="Select drawing color"
+              title="Select drawing color"
+              type="color"
+              value={selectedColor}
+              onChange={(event) => setSelectedColor(event.target.value)}
+              className="h-10 w-10 cursor-pointer rounded-full border border-white bg-black p-1"
+            />
             <IconButton onClick={() => {
                 setSelectedTool("select")
             }} activated={selectedTool === "select"} icon={<MousePointer2/>} />
@@ -82,6 +122,15 @@ function TopBar({selectedTool, setSelectedTool}:{
             <IconButton onClick={() => {
                 setSelectedTool("circle")
             }} activated={selectedTool === "circle"} icon={<Circle/>} />
+            <IconButton onClick={() => {
+                setSelectedTool("line")
+            }} activated={selectedTool === "line"} icon={<Minus/>} />
+            <IconButton onClick={() => {
+                setSelectedTool("arrow")
+            }} activated={selectedTool === "arrow"} icon={<ArrowUpRight/>} />
+            <IconButton onClick={() => {
+                setSelectedTool("diamond")
+            }} activated={selectedTool === "diamond"} icon={<Diamond/>} />
         </div>
   </div>;
 }

@@ -2,8 +2,13 @@ import { ERASER_SIZE, TEXT_FONT } from "../constants";
 import type { Camera, Point, Shape } from "../types";
 import { getTextLines } from "./text";
 
-export function drawShape(ctx: CanvasRenderingContext2D, shape: Shape) {
-  ctx.strokeStyle = "white";
+export function drawShape(
+  ctx: CanvasRenderingContext2D,
+  shape: Shape,
+  overrideColor?: string,
+) {
+  const color = overrideColor ?? shape.color ?? "white";
+  ctx.strokeStyle = color;
 
   if (shape.type === "rect") {
     ctx.strokeRect(shape.x, shape.y, shape.width, shape.height);
@@ -15,10 +20,16 @@ export function drawShape(ctx: CanvasRenderingContext2D, shape: Shape) {
     ctx.ellipse(shape.centerX, shape.centerY, radiusX, radiusY, 0, 0, Math.PI * 2);
     ctx.stroke();
     ctx.closePath();
+  } else if (shape.type === "line") {
+    drawLine(ctx, shape.startX, shape.startY, shape.endX, shape.endY);
+  } else if (shape.type === "arrow") {
+    drawArrow(ctx, shape.startX, shape.startY, shape.endX, shape.endY);
+  } else if (shape.type === "diamond") {
+    drawDiamond(ctx, shape.x, shape.y, shape.width, shape.height);
   } else if (shape.type === "pencil") {
     drawPencil(ctx, shape.points);
   } else if (shape.type === "text") {
-    drawText(ctx, shape);
+    drawText(ctx, shape, color);
   }
 }
 
@@ -36,11 +47,69 @@ export function drawPencil(ctx: CanvasRenderingContext2D, points: Point[]) {
   ctx.closePath();
 }
 
+export function drawLine(
+  ctx: CanvasRenderingContext2D,
+  startX: number,
+  startY: number,
+  endX: number,
+  endY: number,
+) {
+  ctx.beginPath();
+  ctx.moveTo(startX, startY);
+  ctx.lineTo(endX, endY);
+  ctx.stroke();
+  ctx.closePath();
+}
+
+export function drawArrow(
+  ctx: CanvasRenderingContext2D,
+  startX: number,
+  startY: number,
+  endX: number,
+  endY: number,
+) {
+  drawLine(ctx, startX, startY, endX, endY);
+
+  const angle = Math.atan2(endY - startY, endX - startX);
+  const headLength = 14;
+
+  ctx.beginPath();
+  ctx.moveTo(endX, endY);
+  ctx.lineTo(
+    endX - headLength * Math.cos(angle - Math.PI / 6),
+    endY - headLength * Math.sin(angle - Math.PI / 6),
+  );
+  ctx.moveTo(endX, endY);
+  ctx.lineTo(
+    endX - headLength * Math.cos(angle + Math.PI / 6),
+    endY - headLength * Math.sin(angle + Math.PI / 6),
+  );
+  ctx.stroke();
+  ctx.closePath();
+}
+
+export function drawDiamond(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+) {
+  ctx.beginPath();
+  ctx.moveTo(x + width / 2, y);
+  ctx.lineTo(x + width, y + height / 2);
+  ctx.lineTo(x + width / 2, y + height);
+  ctx.lineTo(x, y + height / 2);
+  ctx.closePath();
+  ctx.stroke();
+}
+
 export function drawText(
   ctx: CanvasRenderingContext2D,
   shape: Extract<Shape, { type: "text" }>,
+  overrideColor?: string,
 ) {
-  ctx.fillStyle = "white";
+  ctx.fillStyle = overrideColor ?? shape.color ?? "white";
   ctx.font = TEXT_FONT;
   ctx.textBaseline = "top";
 

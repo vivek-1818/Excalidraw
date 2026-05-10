@@ -20,6 +20,27 @@ export type Shape = (
       radiusY?: number;
     }
   | {
+      type: "line";
+      startX: number;
+      startY: number;
+      endX: number;
+      endY: number;
+    }
+  | {
+      type: "arrow";
+      startX: number;
+      startY: number;
+      endX: number;
+      endY: number;
+    }
+  | {
+      type: "diamond";
+      x: number;
+      y: number;
+      width: number;
+      height: number;
+    }
+  | {
       type: "pencil";
       points: Point[];
     }
@@ -32,6 +53,7 @@ export type Shape = (
 ) & {
   id?: number;
   clientId?: string;
+  color?: string;
 };
 
 export type EraseOperation = {

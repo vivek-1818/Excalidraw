@@ -29,6 +29,31 @@ export function isPointNearShape(
     return normalizedX * normalizedX + normalizedY * normalizedY <= 1;
   }
 
+  if (shape.type === "line" || shape.type === "arrow") {
+    return (
+      distanceToSegment(
+        x,
+        y,
+        { x: shape.startX, y: shape.startY },
+        { x: shape.endX, y: shape.endY },
+      ) <= ERASER_SIZE
+    );
+  }
+
+  if (shape.type === "diamond") {
+    const centerX = shape.x + shape.width / 2;
+    const centerY = shape.y + shape.height / 2;
+    const halfWidth = Math.abs(shape.width / 2) + ERASER_SIZE;
+    const halfHeight = Math.abs(shape.height / 2) + ERASER_SIZE;
+
+    if (halfWidth === 0 || halfHeight === 0) return false;
+
+    return (
+      Math.abs(x - centerX) / halfWidth + Math.abs(y - centerY) / halfHeight <=
+      1
+    );
+  }
+
   if (shape.type === "pencil") {
     return shape.points.some((point, index) => {
       const nextPoint = shape.points[index + 1];

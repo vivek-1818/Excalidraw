@@ -77,6 +77,24 @@ function isShape(value: unknown): value is Shape {
     );
   }
 
+  if (shape.type === "line" || shape.type === "arrow") {
+    return (
+      typeof shape.startX === "number" &&
+      typeof shape.startY === "number" &&
+      typeof shape.endX === "number" &&
+      typeof shape.endY === "number"
+    );
+  }
+
+  if (shape.type === "diamond") {
+    return (
+      typeof shape.x === "number" &&
+      typeof shape.y === "number" &&
+      typeof shape.width === "number" &&
+      typeof shape.height === "number"
+    );
+  }
+
   if (shape.type === "pencil") {
     return (
       Array.isArray(shape.points) &&

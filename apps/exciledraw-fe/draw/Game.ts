@@ -1,7 +1,14 @@
 import { Tool } from "@/components/Canvas";
 import { getExistingShapes, parseDrawMessage } from "./http";
 import { isPointNearShape } from "./shapes/geometry";
-import { drawEraser, drawPencil, drawShape } from "./shapes/renderer";
+import {
+  drawArrow,
+  drawDiamond,
+  drawEraser,
+  drawLine,
+  drawPencil,
+  drawShape,
+} from "./shapes/renderer";
 import { createTextInput, removeTextInput } from "./ui/textInput";
 import type { Camera, Point, Shape } from "./types";
 
@@ -18,18 +25,31 @@ export class Game {
   private currentPencilPoints: Point[] = [];
   private activeTextInput: HTMLTextAreaElement | null = null;
   private camera: Camera = { x: 0, y: 0 };
+  private cameraBroadcastFrame: number | null = null;
+  private clientId = crypto.randomUUID();
+  private currentColor = "#ffffff";
+  private onColorChange?: (color: string) => void;
+  private selectedShapeClientId: string | null = null;
+  private selectedShapeId: number | null = null;
   private isPanning = false;
+  private panMoved = false;
   private lastPanX = 0;
   private lastPanY = 0;
   private selectedTool: Tool = "select";
   socket: WebSocket;
 
-  constructor(canvas: HTMLCanvasElement, roomId: string, socket: WebSocket) {
+  constructor(
+    canvas: HTMLCanvasElement,
+    roomId: string,
+    socket: WebSocket,
+    onColorChange?: (color: string) => void,
+  ) {
     this.canvas = canvas;
     this.ctx = canvas.getContext("2d")!;
     this.existingShapes = [];
     this.roomId = roomId;
     this.socket = socket;
+    this.onColorChange = onColorChange;
     this.clicked = false;
 
     this.init();
@@ -45,12 +65,24 @@ export class Game {
     this.canvas.removeEventListener("mouseleave", this.mouseLeaveHandler);
     this.canvas.removeEventListener("wheel", this.wheelHandler);
     window.removeEventListener("resize", this.resize);
+    if (this.cameraBroadcastFrame !== null) {
+      cancelAnimationFrame(this.cameraBroadcastFrame);
+      this.cameraBroadcastFrame = null;
+    }
     removeTextInput(this.activeTextInput);
     this.activeTextInput = null;
   }
 
   setTool(tool: Tool) {
     this.selectedTool = tool;
+    if (tool !== "select") {
+      this.clearSelection();
+    }
+  }
+
+  setColor(color: string) {
+    this.currentColor = color;
+    this.updateSelectedShapeColor(color);
   }
 
   async init() {
@@ -91,9 +123,27 @@ export class Game {
           ...parsedMessage,
           id: typeof message.id === "number" ? message.id : parsedMessage.id,
         });
+      } else if (message.type === "update_shape") {
+        const parsedMessage = parseDrawMessage(message.message);
+
+        if (parsedMessage && parsedMessage.type !== "erase") {
+          this.upsertShape({
+            ...parsedMessage,
+            id: typeof message.id === "number" ? message.id : parsedMessage.id,
+          });
+        }
       } else if (message.type === "erase") {
         if (Array.isArray(message.ids)) {
           this.removeShapesByIds(message.ids);
+        }
+      } else if (message.type === "camera") {
+        if (
+          message.clientId !== this.clientId &&
+          typeof message.x === "number" &&
+          typeof message.y === "number"
+        ) {
+          this.camera = { x: message.x, y: message.y };
+          this.clearCanvas();
         }
       }
     };
@@ -108,6 +158,7 @@ export class Game {
     this.ctx.save();
     this.ctx.translate(-this.camera.x, -this.camera.y);
     this.existingShapes.forEach((shape) => drawShape(this.ctx, shape));
+    this.drawSelectedShapeOutline();
     this.ctx.restore();
   }
 
@@ -131,6 +182,7 @@ export class Game {
     const shapeWithClientId = {
       ...shape,
       clientId: shape.clientId ?? crypto.randomUUID(),
+      color: shape.color ?? this.currentColor,
     };
 
     this.existingShapes.push(shapeWithClientId);
@@ -171,6 +223,9 @@ export class Game {
     this.existingShapes = this.existingShapes.filter(
       (shape) => typeof shape.id !== "number" || !idsToRemove.has(shape.id),
     );
+    if (this.selectedShapeId !== null && idsToRemove.has(this.selectedShapeId)) {
+      this.clearSelection();
+    }
     this.clearCanvas();
   }
 
@@ -194,6 +249,44 @@ export class Game {
     );
   }
 
+  sendUpdateShapeMessage(shape: Shape) {
+    if (typeof shape.id !== "number" || this.socket.readyState !== WebSocket.OPEN) {
+      return;
+    }
+
+    this.socket.send(
+      JSON.stringify({
+        type: "update_shape",
+        roomId: this.roomId,
+        id: shape.id,
+        message: JSON.stringify(shape),
+      }),
+    );
+  }
+
+  sendCameraMessage() {
+    if (this.socket.readyState !== WebSocket.OPEN) return;
+
+    this.socket.send(
+      JSON.stringify({
+        type: "camera",
+        roomId: this.roomId,
+        clientId: this.clientId,
+        x: this.camera.x,
+        y: this.camera.y,
+      }),
+    );
+  }
+
+  queueCameraBroadcast() {
+    if (this.cameraBroadcastFrame !== null) return;
+
+    this.cameraBroadcastFrame = requestAnimationFrame(() => {
+      this.cameraBroadcastFrame = null;
+      this.sendCameraMessage();
+    });
+  }
+
   getWorldPoint(e: MouseEvent): Point {
     const rect = this.canvas.getBoundingClientRect();
 
@@ -214,9 +307,10 @@ export class Game {
     this.activeTextInput = createTextInput({
       clientX,
       clientY,
+      color: this.currentColor,
       onSubmit: (text) => {
         this.activeTextInput = null;
-        this.addShape({ type: "text", x, y, text });
+        this.addShape({ type: "text", x, y, text, color: this.currentColor });
       },
       onCancel: () => {
         this.activeTextInput = null;
@@ -227,21 +321,28 @@ export class Game {
   startPan(e: MouseEvent) {
     e.preventDefault();
     this.isPanning = true;
+    this.panMoved = false;
     this.lastPanX = e.clientX;
     this.lastPanY = e.clientY;
   }
 
   updatePan(e: MouseEvent) {
-    this.camera.x -= e.clientX - this.lastPanX;
-    this.camera.y -= e.clientY - this.lastPanY;
+    const deltaX = e.clientX - this.lastPanX;
+    const deltaY = e.clientY - this.lastPanY;
+    if (Math.abs(deltaX) > 1 || Math.abs(deltaY) > 1) {
+      this.panMoved = true;
+    }
+    this.camera.x -= deltaX;
+    this.camera.y -= deltaY;
     this.lastPanX = e.clientX;
     this.lastPanY = e.clientY;
     this.clearCanvas();
+    this.queueCameraBroadcast();
   }
 
   drawPreview(width: number, height: number) {
     this.clearCanvas();
-    this.ctx.strokeStyle = "white";
+    this.ctx.strokeStyle = this.currentColor;
     this.ctx.save();
     this.ctx.translate(-this.camera.x, -this.camera.y);
 
@@ -263,6 +364,24 @@ export class Game {
       );
       this.ctx.stroke();
       this.ctx.closePath();
+    } else if (this.selectedTool === "line") {
+      drawLine(
+        this.ctx,
+        this.startX,
+        this.startY,
+        this.startX + width,
+        this.startY + height,
+      );
+    } else if (this.selectedTool === "arrow") {
+      drawArrow(
+        this.ctx,
+        this.startX,
+        this.startY,
+        this.startX + width,
+        this.startY + height,
+      );
+    } else if (this.selectedTool === "diamond") {
+      drawDiamond(this.ctx, this.startX, this.startY, width, height);
     } else if (this.selectedTool === "pencil") {
       drawPencil(this.ctx, this.currentPencilPoints);
     }
@@ -299,6 +418,9 @@ export class Game {
 
   mouseUpHandler = (e: MouseEvent) => {
     if (this.isPanning) {
+      if (this.selectedTool === "select" && !this.panMoved && e.button !== 1) {
+        this.selectShapeAtPoint(this.getWorldPoint(e));
+      }
       this.isPanning = false;
       return;
     }
@@ -323,6 +445,7 @@ export class Game {
         y: this.startY,
         width,
         height,
+        color: this.currentColor,
       };
     } else if (this.selectedTool === "circle") {
       shape = {
@@ -331,12 +454,41 @@ export class Game {
         radiusY: Math.abs(height / 2),
         centerX: this.startX + width / 2,
         centerY: this.startY + height / 2,
+        color: this.currentColor,
+      };
+    } else if (this.selectedTool === "line") {
+      shape = {
+        type: "line",
+        startX: this.startX,
+        startY: this.startY,
+        endX: point.x,
+        endY: point.y,
+        color: this.currentColor,
+      };
+    } else if (this.selectedTool === "arrow") {
+      shape = {
+        type: "arrow",
+        startX: this.startX,
+        startY: this.startY,
+        endX: point.x,
+        endY: point.y,
+        color: this.currentColor,
+      };
+    } else if (this.selectedTool === "diamond") {
+      shape = {
+        type: "diamond",
+        x: this.startX,
+        y: this.startY,
+        width,
+        height,
+        color: this.currentColor,
       };
     } else if (this.selectedTool === "pencil") {
       this.currentPencilPoints.push(point);
       shape = {
         type: "pencil",
         points: this.currentPencilPoints,
+        color: this.currentColor,
       };
     }
 
@@ -383,6 +535,7 @@ export class Game {
     this.camera.x += e.deltaX;
     this.camera.y += e.deltaY;
     this.clearCanvas();
+    this.queueCameraBroadcast();
   };
 
   initMouseHandlers() {
@@ -392,5 +545,69 @@ export class Game {
     this.canvas.addEventListener("mouseleave", this.mouseLeaveHandler);
     this.canvas.addEventListener("wheel", this.wheelHandler, { passive: false });
     window.addEventListener("resize", this.resize);
+  }
+
+  clearSelection() {
+    this.selectedShapeClientId = null;
+    this.selectedShapeId = null;
+  }
+
+  getSelectedShape() {
+    return this.existingShapes.find((shape) => {
+      if (this.selectedShapeId !== null) {
+        return shape.id === this.selectedShapeId;
+      }
+
+      return (
+        this.selectedShapeClientId !== null &&
+        shape.clientId === this.selectedShapeClientId
+      );
+    });
+  }
+
+  selectShapeAtPoint(point: Point) {
+    const selectedShape = [...this.existingShapes]
+      .reverse()
+      .find((shape) =>
+        isPointNearShape(point.x, point.y, shape, (text) => {
+          this.ctx.font = "20px sans-serif";
+          return this.ctx.measureText(text).width;
+        }),
+      );
+
+    if (!selectedShape) {
+      this.clearSelection();
+      this.clearCanvas();
+      return;
+    }
+
+    this.selectedShapeClientId = selectedShape.clientId ?? null;
+    this.selectedShapeId =
+      typeof selectedShape.id === "number" ? selectedShape.id : null;
+    this.currentColor = selectedShape.color ?? "#ffffff";
+    this.onColorChange?.(this.currentColor);
+    this.clearCanvas();
+  }
+
+  updateSelectedShapeColor(color: string) {
+    const selectedShape = this.getSelectedShape();
+    if (!selectedShape) return;
+
+    const updatedShape = { ...selectedShape, color };
+    this.upsertShape(updatedShape);
+    this.sendUpdateShapeMessage(updatedShape);
+  }
+
+  drawSelectedShapeOutline() {
+    const selectedShape = this.getSelectedShape();
+    if (!selectedShape) return;
+
+    this.ctx.save();
+    this.ctx.strokeStyle = "#a7a2ff";
+    this.ctx.lineWidth = 2;
+    this.ctx.setLineDash([6, 4]);
+    drawShape(this.ctx, selectedShape, "#a7a2ff");
+    this.ctx.setLineDash([]);
+    this.ctx.restore();
   }
 }

@@ -159,5 +159,78 @@ wss.on("connection", function connection(ws, request) {
         }
       });
     }
+
+    if (parsedData.type == "update_shape") {
+      const roomId = Number(parsedData.roomId);
+      const id = Number(parsedData.id);
+      const message = parsedData.message;
+
+      if (
+        !Number.isInteger(roomId) ||
+        !Number.isInteger(id) ||
+        typeof message !== "string"
+      ) {
+        return;
+      }
+
+      try {
+        await prismaClient.chat.updateMany({
+          where: {
+            roomId,
+            id,
+          },
+          data: {
+            message,
+          },
+        });
+      } catch (e) {
+        console.error("Failed to update shape message", e);
+        return;
+      }
+
+      users.forEach((user) => {
+        if (user.rooms.includes(roomId)) {
+          user.ws.send(
+            JSON.stringify({
+              type: "update_shape",
+              id,
+              message,
+              roomId,
+            }),
+          );
+        }
+      });
+    }
+
+    if (parsedData.type == "camera") {
+      const roomId = Number(parsedData.roomId);
+      const x = Number(parsedData.x);
+      const y = Number(parsedData.y);
+
+      if (
+        !Number.isInteger(roomId) ||
+        !Number.isFinite(x) ||
+        !Number.isFinite(y)
+      ) {
+        return;
+      }
+
+      users.forEach((user) => {
+        if (user.rooms.includes(roomId)) {
+          user.ws.send(
+            JSON.stringify({
+              type: "camera",
+              roomId,
+              clientId:
+                typeof parsedData.clientId === "string"
+                  ? parsedData.clientId
+                  : undefined,
+              x,
+              y,
+            }),
+          );
+        }
+      });
+    }
   });
 });
