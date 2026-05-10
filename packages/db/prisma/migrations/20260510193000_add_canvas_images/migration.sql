@@ -1,0 +1,19 @@
+CREATE TABLE "CanvasImage" (
+    "id" SERIAL NOT NULL,
+    "roomId" INTEGER NOT NULL,
+    "userId" TEXT NOT NULL,
+    "imageUrl" TEXT NOT NULL,
+    "publicId" TEXT,
+    "x" DOUBLE PRECISION NOT NULL,
+    "y" DOUBLE PRECISION NOT NULL,
+    "width" DOUBLE PRECISION NOT NULL,
+    "height" DOUBLE PRECISION NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "CanvasImage_pkey" PRIMARY KEY ("id")
+);
+
+ALTER TABLE "CanvasImage" ADD CONSTRAINT "CanvasImage_roomId_fkey" FOREIGN KEY ("roomId") REFERENCES "Room"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+ALTER TABLE "CanvasImage" ADD CONSTRAINT "CanvasImage_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

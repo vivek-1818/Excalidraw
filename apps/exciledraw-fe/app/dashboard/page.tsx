@@ -133,7 +133,7 @@ export default function DashboardPage() {
             <div className="py-16 text-center">
               <h2 className="text-xl font-semibold">No rooms yet</h2>
               <p className="mt-2 text-sm text-zinc-400">
-                Create a room from the home page and it will appear here.
+                
               </p>
             </div>
           ) : (

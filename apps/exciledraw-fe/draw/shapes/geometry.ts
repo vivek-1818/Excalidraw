@@ -78,6 +78,15 @@ export function isPointNearShape(
     );
   }
 
+  if (shape.type === "image") {
+    const left = Math.min(shape.x, shape.x + shape.width) - ERASER_SIZE;
+    const right = Math.max(shape.x, shape.x + shape.width) + ERASER_SIZE;
+    const top = Math.min(shape.y, shape.y + shape.height) - ERASER_SIZE;
+    const bottom = Math.max(shape.y, shape.y + shape.height) + ERASER_SIZE;
+
+    return x >= left && x <= right && y >= top && y <= bottom;
+  }
+
   return false;
 }
 

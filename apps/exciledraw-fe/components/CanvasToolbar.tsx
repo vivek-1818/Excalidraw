@@ -3,6 +3,7 @@ import {
   Circle,
   Diamond,
   Eraser,
+  ImagePlus,
   Home,
   Minus,
   MousePointer2,
@@ -27,15 +28,19 @@ export type Tool =
 type CanvasToolbarProps = {
   selectedColor: string;
   selectedTool: Tool;
+  uploadingImage?: boolean;
   setSelectedColor: (color: string) => void;
   setSelectedTool: (tool: Tool) => void;
+  onImageUpload: () => void;
 };
 
 export function CanvasToolbar({
   selectedColor,
   selectedTool,
+  uploadingImage = false,
   setSelectedColor,
   setSelectedTool,
+  onImageUpload,
 }: CanvasToolbarProps) {
   return (
     <div
@@ -89,6 +94,12 @@ export function CanvasToolbar({
           activated={selectedTool === "text"}
           icon={<Type />}
           title="Text"
+        />
+        <IconButton
+          onClick={onImageUpload}
+          activated={uploadingImage}
+          icon={<ImagePlus />}
+          title={uploadingImage ? "Uploading image" : "Upload image"}
         />
         <IconButton
           onClick={() => setSelectedTool("eraser")}

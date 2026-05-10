@@ -2,6 +2,8 @@ import { ERASER_SIZE, TEXT_FONT } from "../constants";
 import type { Camera, Point, Shape } from "../types";
 import { getTextLines } from "./text";
 
+const imageCache = new Map<string, HTMLImageElement>();
+
 export function drawShape(
   ctx: CanvasRenderingContext2D,
   shape: Shape,
@@ -30,7 +32,45 @@ export function drawShape(
     drawPencil(ctx, shape.points);
   } else if (shape.type === "text") {
     drawText(ctx, shape, color);
+  } else if (shape.type === "image") {
+    drawImage(ctx, shape);
   }
+}
+
+export function preloadCanvasImage(imageUrl: string, onLoad: () => void) {
+  const cachedImage = imageCache.get(imageUrl);
+
+  if (cachedImage) {
+    if (cachedImage.complete) onLoad();
+    return cachedImage;
+  }
+
+  const image = new Image();
+  image.crossOrigin = "anonymous";
+  image.onload = onLoad;
+  image.src = imageUrl;
+  imageCache.set(imageUrl, image);
+
+  return image;
+}
+
+export function drawImage(
+  ctx: CanvasRenderingContext2D,
+  shape: Extract<Shape, { type: "image" }>,
+) {
+  const image = imageCache.get(shape.imageUrl);
+
+  if (image?.complete && image.naturalWidth > 0) {
+    ctx.drawImage(image, shape.x, shape.y, shape.width, shape.height);
+    return;
+  }
+
+  ctx.save();
+  ctx.strokeStyle = "rgba(255, 255, 255, 0.45)";
+  ctx.fillStyle = "rgba(255, 255, 255, 0.08)";
+  ctx.fillRect(shape.x, shape.y, shape.width, shape.height);
+  ctx.strokeRect(shape.x, shape.y, shape.width, shape.height);
+  ctx.restore();
 }
 
 export function drawPencil(ctx: CanvasRenderingContext2D, points: Point[]) {

@@ -185,6 +185,73 @@ wss.on("connection", function connection(ws, request) {
       });
     }
 
+    if (parsedData.type == "erase_images") {
+      const roomId = Number(parsedData.roomId);
+      if (!Number.isInteger(roomId)) {
+        return;
+      }
+
+      if (!Array.isArray(parsedData.ids)) {
+        return;
+      }
+
+      const ids = parsedData.ids
+        .map((id: unknown) => Number(id))
+        .filter((id: number) => Number.isInteger(id));
+
+      if (ids.length === 0) {
+        return;
+      }
+
+      let deletedIds: number[] = [];
+
+      try {
+        const ownedImages = await prismaClient.canvasImage.findMany({
+          where: {
+            roomId,
+            userId,
+            id: {
+              in: ids,
+            },
+          },
+          select: {
+            id: true,
+          },
+        });
+
+        deletedIds = ownedImages.map((image) => image.id);
+
+        if (deletedIds.length === 0) {
+          return;
+        }
+
+        await prismaClient.canvasImage.deleteMany({
+          where: {
+            roomId,
+            userId,
+            id: {
+              in: deletedIds,
+            },
+          },
+        });
+      } catch (e) {
+        console.error("Failed to erase canvas images", e);
+        return;
+      }
+
+      users.forEach((user) => {
+        if (user.rooms.includes(roomId)) {
+          user.ws.send(
+            JSON.stringify({
+              type: "erase_images",
+              ids: deletedIds,
+              roomId,
+            }),
+          );
+        }
+      });
+    }
+
     if (parsedData.type == "update_shape") {
       const roomId = Number(parsedData.roomId);
       const id = Number(parsedData.id);
@@ -228,6 +295,89 @@ wss.on("connection", function connection(ws, request) {
               id,
               message: ownedMessage,
               roomId,
+              userId,
+            }),
+          );
+        }
+      });
+    }
+
+    if (parsedData.type == "image_create") {
+      const roomId = Number(parsedData.roomId);
+      const image = parsedData.image;
+
+      if (!Number.isInteger(roomId) || !image || typeof image !== "object") {
+        return;
+      }
+
+      users.forEach((user) => {
+        if (user.rooms.includes(roomId)) {
+          user.ws.send(
+            JSON.stringify({
+              type: "image_create",
+              roomId,
+              image,
+            }),
+          );
+        }
+      });
+    }
+
+    if (parsedData.type == "update_image") {
+      const roomId = Number(parsedData.roomId);
+      const id = Number(parsedData.id);
+      const x = Number(parsedData.x);
+      const y = Number(parsedData.y);
+      const width = Number(parsedData.width);
+      const height = Number(parsedData.height);
+
+      if (
+        !Number.isInteger(roomId) ||
+        !Number.isInteger(id) ||
+        !Number.isFinite(x) ||
+        !Number.isFinite(y) ||
+        !Number.isFinite(width) ||
+        !Number.isFinite(height) ||
+        width <= 0 ||
+        height <= 0
+      ) {
+        return;
+      }
+
+      try {
+        const result = await prismaClient.canvasImage.updateMany({
+          where: {
+            roomId,
+            id,
+            userId,
+          },
+          data: {
+            x,
+            y,
+            width,
+            height,
+          },
+        });
+
+        if (result.count === 0) {
+          return;
+        }
+      } catch (e) {
+        console.error("Failed to update canvas image", e);
+        return;
+      }
+
+      users.forEach((user) => {
+        if (user.rooms.includes(roomId)) {
+          user.ws.send(
+            JSON.stringify({
+              type: "update_image",
+              roomId,
+              id,
+              x,
+              y,
+              width,
+              height,
               userId,
             }),
           );

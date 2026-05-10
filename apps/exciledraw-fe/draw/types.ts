@@ -50,6 +50,15 @@ export type Shape = (
       y: number;
       text: string;
     }
+  | {
+      type: "image";
+      x: number;
+      y: number;
+      width: number;
+      height: number;
+      imageUrl: string;
+      imageId?: number;
+    }
 ) & {
   id?: number;
   clientId?: string;

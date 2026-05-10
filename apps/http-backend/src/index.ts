@@ -2,6 +2,10 @@ import express from "express";
 import jwt from "jsonwebtoken";
 import { JWT_SECRET } from "@repo/backend-common/config";
 import { middleware } from "./middleware.js";
+import { v2 as cloudinary } from "cloudinary";
+import fs from "fs";
+import multer from "multer";
+import path from "path";
 import {
   CreateUserSchema,
   JoinRoomSchema,
@@ -11,10 +15,18 @@ import {
 import { prismaClient } from "@repo/db/client";
 import bcrypt from "bcrypt";
 
+loadLocalEnv();
+
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
+
 const app = express();
 app.use((req, res, next) => {
   res.header("Access-Control-Allow-Origin", "*");
-  res.header("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
+  res.header("Access-Control-Allow-Methods", "GET,POST,DELETE,OPTIONS");
   res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
 
   if (req.method === "OPTIONS") {
@@ -25,6 +37,21 @@ app.use((req, res, next) => {
   next();
 });
 app.use(express.json());
+
+const imageUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 5 * 1024 * 1024,
+  },
+  fileFilter: (_req, file, cb) => {
+    if (["image/jpeg", "image/png", "image/webp", "image/gif"].includes(file.mimetype)) {
+      cb(null, true);
+      return;
+    }
+
+    cb(new Error("Only JPG, PNG, WEBP, and GIF images are allowed"));
+  },
+});
 
 app.post("/signup", async (req, res) => {
   const parsedData = CreateUserSchema.safeParse(req.body);
@@ -181,6 +208,92 @@ app.post("/room/join", middleware, async (req, res) => {
   });
 });
 
+app.post(
+  "/image/upload",
+  middleware,
+  imageUpload.single("image"),
+  async (req, res) => {
+    if (!req.file) {
+      res.status(400).json({
+        message: "Image file is required",
+      });
+      return;
+    }
+
+    const roomId = Number(req.body.roomId);
+    const x = Number(req.body.x);
+    const y = Number(req.body.y);
+    const width = Number(req.body.width);
+    const height = Number(req.body.height);
+
+    if (
+      !Number.isInteger(roomId) ||
+      !Number.isFinite(x) ||
+      !Number.isFinite(y) ||
+      !Number.isFinite(width) ||
+      !Number.isFinite(height) ||
+      width <= 0 ||
+      height <= 0
+    ) {
+      res.status(400).json({
+        message: "Valid room id and image position are required",
+      });
+      return;
+    }
+
+    try {
+      const uploadResult = await uploadBufferToCloudinary(req.file.buffer);
+      //@ts-ignore
+      const userId = req.userId;
+      const canvasImage = await prismaClient.canvasImage.create({
+        data: {
+          roomId,
+          userId,
+          imageUrl: uploadResult.secure_url,
+          publicId: uploadResult.public_id,
+          x,
+          y,
+          width,
+          height,
+        },
+      });
+
+      res.json({
+        image: canvasImage,
+      });
+    } catch (e) {
+      console.error("Failed to upload image", e);
+      res.status(500).json({
+        message: "Could not upload image",
+      });
+    }
+  },
+);
+
+app.get("/images/:roomId", async (req, res) => {
+  const roomId = Number(req.params.roomId);
+
+  if (!Number.isInteger(roomId)) {
+    res.status(400).json({
+      message: "Invalid room id",
+    });
+    return;
+  }
+
+  const images = await prismaClient.canvasImage.findMany({
+    where: {
+      roomId,
+    },
+    orderBy: {
+      id: "asc",
+    },
+  });
+
+  res.json({
+    images,
+  });
+});
+
 app.get("/rooms/me", middleware, async (req, res) => {
   //@ts-ignore
   const userId = req.userId;
@@ -247,6 +360,12 @@ app.delete("/room/:roomId", middleware, async (req, res) => {
     },
   });
 
+  await prismaClient.canvasImage.deleteMany({
+    where: {
+      roomId,
+    },
+  });
+
   await prismaClient.room.delete({
     where: {
       id: roomId,
@@ -297,4 +416,64 @@ function isPrismaError(error: unknown, code: string) {
     "code" in error &&
     (error as { code?: unknown }).code === code
   );
+}
+
+function uploadBufferToCloudinary(buffer: Buffer) {
+  return new Promise<{
+    secure_url: string;
+    public_id: string;
+    width: number;
+    height: number;
+  }>((resolve, reject) => {
+    const uploadStream = cloudinary.uploader.upload_stream(
+      {
+        folder: "exciledraw/canvas-images",
+        resource_type: "image",
+        transformation: [
+          {
+            width: 1600,
+            height: 1600,
+            crop: "limit",
+          },
+        ],
+      },
+      (error, result) => {
+        if (error || !result) {
+          reject(error ?? new Error("Cloudinary upload failed"));
+          return;
+        }
+
+        resolve({
+          secure_url: result.secure_url,
+          public_id: result.public_id,
+          width: result.width,
+          height: result.height,
+        });
+      },
+    );
+
+    uploadStream.end(buffer);
+  });
+}
+
+function loadLocalEnv() {
+  const envPath = path.join(process.cwd(), ".env");
+  if (!fs.existsSync(envPath)) return;
+
+  const envFile = fs.readFileSync(envPath, "utf8");
+
+  envFile.split(/\r?\n/).forEach((line) => {
+    const trimmedLine = line.trim();
+    if (!trimmedLine || trimmedLine.startsWith("#")) return;
+
+    const equalsIndex = trimmedLine.indexOf("=");
+    if (equalsIndex === -1) return;
+
+    const key = trimmedLine.slice(0, equalsIndex).trim();
+    const value = trimmedLine.slice(equalsIndex + 1).trim();
+
+    if (key && process.env[key] === undefined) {
+      process.env[key] = value;
+    }
+  });
 }
