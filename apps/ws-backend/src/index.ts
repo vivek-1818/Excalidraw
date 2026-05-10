@@ -85,14 +85,17 @@ wss.on("connection", function connection(ws, request) {
         return;
       }
 
+      let chatId: number;
+
       try {
-        await prismaClient.chat.create({
+        const chat = await prismaClient.chat.create({
           data: {
             roomId,
             message,
             userId,
           },
         });
+        chatId = chat.id;
       } catch (e) {
         console.error("Failed to save chat message", e);
         return;
@@ -103,7 +106,53 @@ wss.on("connection", function connection(ws, request) {
           user.ws.send(
             JSON.stringify({
               type: "chat",
+              id: chatId,
               message: message,
+              roomId,
+            }),
+          );
+        }
+      });
+    }
+
+    if (parsedData.type == "erase") {
+      const roomId = Number(parsedData.roomId);
+      if (!Number.isInteger(roomId)) {
+        return;
+      }
+
+      if (!Array.isArray(parsedData.ids)) {
+        return;
+      }
+
+      const ids = parsedData.ids
+        .map((id: unknown) => Number(id))
+        .filter((id: number) => Number.isInteger(id));
+
+      if (ids.length === 0) {
+        return;
+      }
+
+      try {
+        await prismaClient.chat.deleteMany({
+          where: {
+            roomId,
+            id: {
+              in: ids,
+            },
+          },
+        });
+      } catch (e) {
+        console.error("Failed to erase chat messages", e);
+        return;
+      }
+
+      users.forEach((user) => {
+        if (user.rooms.includes(roomId)) {
+          user.ws.send(
+            JSON.stringify({
+              type: "erase",
+              ids,
               roomId,
             }),
           );

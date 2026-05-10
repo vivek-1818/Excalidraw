@@ -1,22 +1,47 @@
 import { HTTP_BACKEND } from "@/config";
 import axios from "axios";
-import type { Point, Shape } from "./Game";
+import { isPointNearShape } from "./shapes/geometry";
+import type { DrawMessage, EraseOperation, Point, Shape } from "./types";
 
 export async function getExistingShapes(roomId: string) {
   const res = await axios.get(`${HTTP_BACKEND}/chats/${roomId}`);
-  const messages = res.data.messages;
+  const messages = [...res.data.messages].reverse();
+  let shapes: Shape[] = [];
 
-  const shapes = messages
-    .map((x: { message: string }) => parseShapeMessage(x.message))
-    .filter((shape: Shape | null): shape is Shape => Boolean(shape));
+  messages.forEach((x: { id: number; message: string }) => {
+    const parsedMessage = parseDrawMessage(x.message);
+
+    if (!parsedMessage) return;
+
+    if (parsedMessage.type === "erase") {
+      shapes = shapes.filter(
+        (shape) => !isPointNearShape(parsedMessage.x, parsedMessage.y, shape),
+      );
+    } else {
+      shapes.push({
+        ...parsedMessage,
+        id: x.id,
+      });
+    }
+  });
 
   return shapes;
 }
 
 export function parseShapeMessage(message: string): Shape | null {
+  const parsedMessage = parseDrawMessage(message);
+
+  return parsedMessage && parsedMessage.type !== "erase" ? parsedMessage : null;
+}
+
+export function parseDrawMessage(message: string): DrawMessage | null {
   try {
     const messageData = JSON.parse(message);
     const shape = messageData?.shape ?? messageData;
+
+    if (isEraseOperation(shape)) {
+      return shape;
+    }
 
     return isShape(shape) ? shape : null;
   } catch {
@@ -79,4 +104,18 @@ function isPoint(value: unknown): value is Point {
   const point = value as Partial<Point>;
 
   return typeof point.x === "number" && typeof point.y === "number";
+}
+
+function isEraseOperation(value: unknown): value is EraseOperation {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+
+  const operation = value as Partial<EraseOperation>;
+
+  return (
+    operation.type === "erase" &&
+    typeof operation.x === "number" &&
+    typeof operation.y === "number"
+  );
 }
