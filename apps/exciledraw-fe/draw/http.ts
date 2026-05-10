@@ -1,6 +1,6 @@
 import { HTTP_BACKEND } from "@/config";
 import axios from "axios";
-import type { Shape } from "./Game";
+import type { Point, Shape } from "./Game";
 
 export async function getExistingShapes(roomId: string) {
   const res = await axios.get(`${HTTP_BACKEND}/chats/${roomId}`);
@@ -52,5 +52,31 @@ function isShape(value: unknown): value is Shape {
     );
   }
 
+  if (shape.type === "pencil") {
+    return (
+      Array.isArray(shape.points) &&
+      shape.points.length > 1 &&
+      shape.points.every(isPoint)
+    );
+  }
+
+  if (shape.type === "text") {
+    return (
+      typeof shape.x === "number" &&
+      typeof shape.y === "number" &&
+      typeof shape.text === "string"
+    );
+  }
+
   return false;
+}
+
+function isPoint(value: unknown): value is Point {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+
+  const point = value as Partial<Point>;
+
+  return typeof point.x === "number" && typeof point.y === "number";
 }

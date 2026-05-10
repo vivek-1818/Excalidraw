@@ -1,6 +1,11 @@
 import { HTTP_BACKEND } from "@/config";
 import axios from "axios";
 
+type Point = {
+  x: number;
+  y: number;
+};
+
 type Shape =
   | {
       type: "rect";
@@ -16,6 +21,16 @@ type Shape =
       radius?: number;
       radiusX?: number;
       radiusY?: number;
+    }
+  | {
+      type: "pencil";
+      points: Point[];
+    }
+  | {
+      type: "text";
+      x: number;
+      y: number;
+      text: string;
     };
 
 export async function initDraw(
@@ -48,11 +63,13 @@ export async function initDraw(
   let clicked = false;
   let startX = 0;
   let startY = 0;
+  let currentPencilPoints: Point[] = [];
 
   canvas.addEventListener("mousedown", (e) => {
     clicked = true;
     startX = e.clientX;
     startY = e.clientY;
+    currentPencilPoints = [{ x: e.clientX, y: e.clientY }];
   });
 
   canvas.addEventListener("mouseup", (e) => {
@@ -80,6 +97,23 @@ export async function initDraw(
         centerX: startX + width / 2,
         centerY: startY + height / 2,
       };
+    } else if (selectedTool === "pencil") {
+      currentPencilPoints.push({ x: e.clientX, y: e.clientY });
+      shape = {
+        type: "pencil",
+        points: currentPencilPoints,
+      };
+    } else if (selectedTool === "text") {
+      const text = window.prompt("Enter text");
+
+      if (text) {
+        shape = {
+          type: "text",
+          x: e.clientX,
+          y: e.clientY,
+          text,
+        };
+      }
     }
     if(!shape){
         return
@@ -114,6 +148,9 @@ export async function initDraw(
         ctx.ellipse(centerX, centerY, radiusX, radiusY, 0, 0, Math.PI * 2);
         ctx.stroke();
         ctx.closePath();
+      } else if (selectedTool === "pencil") {
+        currentPencilPoints.push({ x: e.clientX, y: e.clientY });
+        drawPencil(ctx, currentPencilPoints);
       }
     }
   });
@@ -148,6 +185,13 @@ function clearCanvas(
       );
       ctx.stroke();
       ctx.closePath();
+    } else if (shape.type === "pencil") {
+      drawPencil(ctx, shape.points);
+    } else if (shape.type === "text") {
+      ctx.fillStyle = "rgba(255, 255, 255)";
+      ctx.font = "20px sans-serif";
+      ctx.textBaseline = "top";
+      ctx.fillText(shape.text, shape.x, shape.y);
     }
   });
 }
@@ -177,6 +221,63 @@ function isShape(value: unknown): value is Shape {
   }
 
   const shape = value as Partial<Shape>;
-  return shape.type === "rect" || shape.type === "circle";
-  /*  */
+  if (shape.type === "rect") {
+    return (
+      typeof shape.x === "number" &&
+      typeof shape.y === "number" &&
+      typeof shape.width === "number" &&
+      typeof shape.height === "number"
+    );
+  }
+
+  if (shape.type === "circle") {
+    return (
+      typeof shape.centerX === "number" &&
+      typeof shape.centerY === "number" &&
+      (typeof shape.radius === "number" ||
+        (typeof shape.radiusX === "number" && typeof shape.radiusY === "number"))
+    );
+  }
+
+  if (shape.type === "pencil") {
+    return (
+      Array.isArray(shape.points) &&
+      shape.points.length > 1 &&
+      shape.points.every(isPoint)
+    );
+  }
+
+  if (shape.type === "text") {
+    return (
+      typeof shape.x === "number" &&
+      typeof shape.y === "number" &&
+      typeof shape.text === "string"
+    );
+  }
+
+  return false;
+}
+
+function drawPencil(ctx: CanvasRenderingContext2D, points: Point[]) {
+  if (points.length < 2) return;
+
+  ctx.beginPath();
+  ctx.moveTo(points[0].x, points[0].y);
+
+  points.slice(1).forEach((point) => {
+    ctx.lineTo(point.x, point.y);
+  });
+
+  ctx.stroke();
+  ctx.closePath();
+}
+
+function isPoint(value: unknown): value is Point {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+
+  const point = value as Partial<Point>;
+
+  return typeof point.x === "number" && typeof point.y === "number";
 }
