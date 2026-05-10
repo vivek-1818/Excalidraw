@@ -407,7 +407,9 @@ app.get("/room/:slug", async (req,res)=> {
   })
 })
 
-app.listen(3001);
+const port = Number(process.env.PORT ?? 3001);
+
+app.listen(port);
 
 function isPrismaError(error: unknown, code: string) {
   return (
