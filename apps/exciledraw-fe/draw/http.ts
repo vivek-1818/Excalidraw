@@ -9,7 +9,7 @@ export async function getExistingShapes(roomId: string) {
   const messages = [...res.data.messages].reverse();
   let shapes: Shape[] = [];
 
-  messages.forEach((x: { id: number; message: string }) => {
+  messages.forEach((x: { id: number; message: string; userId?: string }) => {
     const parsedMessage = parseDrawMessage(x.message);
 
     if (!parsedMessage) return;
@@ -22,6 +22,7 @@ export async function getExistingShapes(roomId: string) {
       shapes.push({
         ...parsedMessage,
         id: x.id,
+        ownerId: x.userId ?? parsedMessage.ownerId,
       });
     }
   });

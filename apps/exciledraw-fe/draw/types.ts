@@ -54,6 +54,7 @@ export type Shape = (
   id?: number;
   clientId?: string;
   color?: string;
+  ownerId?: string;
 };
 
 export type EraseOperation = {

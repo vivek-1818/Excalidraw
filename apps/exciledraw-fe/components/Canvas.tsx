@@ -4,9 +4,11 @@ import { CanvasToolbar, type Tool } from "./CanvasToolbar";
 export type { Tool } from "./CanvasToolbar";
 
 export function Canvas({
+  currentUserId,
   roomId,
   socket,
 }: {
+  currentUserId: string;
   roomId: string;
   socket: WebSocket;
 }) {
@@ -25,20 +27,27 @@ export function Canvas({
 
   useEffect(() => {
     if(canvasRef.current){
-      const g = new Game(canvasRef.current, roomId, socket, setSelectedColor);
+      const g = new Game(
+        canvasRef.current,
+        roomId,
+        socket,
+        currentUserId,
+        setSelectedColor,
+      );
       setGame(g);
 
       return () => {
         g.destroy();
       }
     }
-  }, [canvasRef]);
+  }, [canvasRef, currentUserId, roomId, socket]);
 
   return (
     <div
       style={{
         height: "100vh",
         overflow: "hidden",
+        background: "#020617",
       }}
     >
       <canvas

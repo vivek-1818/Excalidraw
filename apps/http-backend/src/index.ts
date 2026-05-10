@@ -4,6 +4,7 @@ import { JWT_SECRET } from "@repo/backend-common/config";
 import { middleware } from "./middleware.js";
 import {
   CreateUserSchema,
+  JoinRoomSchema,
   SigninSchema,
   CreateRoomSchema,
 } from "@repo/common/types";
@@ -110,6 +111,7 @@ app.post("/room", middleware, async (req, res) => {
     const room = await prismaClient.room.create({
       data: {
         slug: parsedData.data.name,
+        password: await bcrypt.hash(parsedData.data.password, 10),
         adminId: userId,
       },
     });
@@ -118,10 +120,142 @@ app.post("/room", middleware, async (req, res) => {
       roomId: room.id,
     });
   } catch (e) {
-    res.status(411).json({
-      message: "Room already exist with this name",
+    console.error("Failed to create room", e);
+
+    if (isPrismaError(e, "P2002")) {
+      res.status(409).json({
+        message: "Room already exists with this name",
+      });
+      return;
+    }
+
+    if (isPrismaError(e, "P2022")) {
+      res.status(500).json({
+        message: "Database migration is missing. Please apply the latest room password migration.",
+      });
+      return;
+    }
+
+    res.status(500).json({
+      message: "Could not create room. Please try again.",
     });
   }
+});
+
+app.post("/room/join", middleware, async (req, res) => {
+  const parsedData = JoinRoomSchema.safeParse(req.body);
+  if (!parsedData.success) {
+    res.status(400).json({
+      message: "Incorrect Inputs",
+    });
+    return;
+  }
+
+  const room = await prismaClient.room.findFirst({
+    where: {
+      slug: parsedData.data.name,
+    },
+  });
+
+  if (!room) {
+    res.status(404).json({
+      message: "Room not found",
+    });
+    return;
+  }
+
+  const passwordMatches = await bcrypt.compare(
+    parsedData.data.password,
+    room.password,
+  );
+
+  if (!passwordMatches) {
+    res.status(403).json({
+      message: "Incorrect room password",
+    });
+    return;
+  }
+
+  res.json({
+    roomId: room.id,
+  });
+});
+
+app.get("/rooms/me", middleware, async (req, res) => {
+  //@ts-ignore
+  const userId = req.userId;
+
+  const rooms = await prismaClient.room.findMany({
+    where: {
+      adminId: userId,
+    },
+    orderBy: {
+      createdAt: "desc",
+    },
+    select: {
+      id: true,
+      slug: true,
+      createdAt: true,
+      _count: {
+        select: {
+          chats: true,
+        },
+      },
+    },
+  });
+
+  res.json({
+    rooms,
+  });
+});
+
+app.delete("/room/:roomId", middleware, async (req, res) => {
+  const roomId = Number(req.params.roomId);
+  if (!Number.isInteger(roomId)) {
+    res.status(400).json({
+      message: "Invalid room id",
+    });
+    return;
+  }
+
+  //@ts-ignore
+  const userId = req.userId;
+
+  const room = await prismaClient.room.findFirst({
+    where: {
+      id: roomId,
+    },
+  });
+
+  if (!room) {
+    res.status(404).json({
+      message: "Room not found",
+    });
+    return;
+  }
+
+  if (room.adminId !== userId) {
+    res.status(403).json({
+      message: "You can only delete rooms created by you",
+    });
+    return;
+  }
+
+  await prismaClient.chat.deleteMany({
+    where: {
+      roomId,
+    },
+  });
+
+  await prismaClient.room.delete({
+    where: {
+      id: roomId,
+    },
+  });
+
+  res.json({
+    message: "Room deleted",
+  });
 });
 
 app.get("/chats/:roomId", async (req, res) => {
@@ -155,3 +289,12 @@ app.get("/room/:slug", async (req,res)=> {
 })
 
 app.listen(3001);
+
+function isPrismaError(error: unknown, code: string) {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    (error as { code?: unknown }).code === code
+  );
+}

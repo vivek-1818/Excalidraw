@@ -1,0 +1,3 @@
+ALTER TABLE "Room" ADD COLUMN "password" TEXT NOT NULL DEFAULT 'changeme';
+
+ALTER TABLE "Room" ALTER COLUMN "password" DROP DEFAULT;

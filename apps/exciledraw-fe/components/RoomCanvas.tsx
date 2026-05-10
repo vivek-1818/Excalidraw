@@ -1,15 +1,40 @@
 "use client";
 
 import { WS_URL } from "@/config";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Canvas } from "./Canvas";
 
+function getUserIdFromToken(token: string) {
+  try {
+    const payload = JSON.parse(atob(token.split(".")[1] ?? ""));
+    return typeof payload.userId === "string" ? payload.userId : null;
+  } catch {
+    return null;
+  }
+}
 
 export function RooomCanvas({ roomId }: { roomId: string }) {
   const [socket, setSocket] = useState<WebSocket | null>(null);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const router = useRouter();
 
   useEffect(() => {
-    const ws = new WebSocket(`${WS_URL}?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2NzU3NGYxMi02NjQ5LTQ3ZDktOGQ4Ny04NDAyYmMwMWQ5YjgiLCJpYXQiOjE3Nzc2MzY2ODB9.Hf31A0onsE0rZz6kxW3Ox1jd7ZvCX9LU-l1jSnlLLRY`);
+    const token = localStorage.getItem("token");
+    if (!token) {
+      router.push("/signin");
+      return;
+    }
+
+    const userId = getUserIdFromToken(token);
+    if (!userId) {
+      localStorage.removeItem("token");
+      router.push("/signin");
+      return;
+    }
+
+    setCurrentUserId(userId);
+    const ws = new WebSocket(`${WS_URL}?token=${token}`);
 
     ws.onopen = () =>{
         setSocket(ws)
@@ -22,10 +47,11 @@ export function RooomCanvas({ roomId }: { roomId: string }) {
     return () => {
       ws.close();
       setSocket(null);
+      setCurrentUserId(null);
     };
-  }, [roomId])
+  }, [roomId, router])
 
-  if(!socket){
+  if(!socket || !currentUserId){
     return <div>
         Connecting to server....
     </div>
@@ -33,7 +59,7 @@ export function RooomCanvas({ roomId }: { roomId: string }) {
 
   return (
     <div>
-      <Canvas roomId={roomId} socket={socket}/>  
+      <Canvas currentUserId={currentUserId} roomId={roomId} socket={socket}/>  
     </div>
   );
 }

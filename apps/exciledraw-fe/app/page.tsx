@@ -1,128 +1,264 @@
-import { Button } from "@repo/ui/button";
-import { Card } from "@repo/ui/card";
-import { Pencil, Share2, Users2, Sparkles, Github, Download } from "lucide-react";
+"use client";
+
+import { HTTP_BACKEND } from "@/config";
+import axios from "axios";
+import {
+  ArrowRight,
+  LockKeyhole,
+  LogIn,
+  Pencil,
+  Plus,
+  ShieldCheck,
+  Sparkles,
+  Users2,
+} from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import type { ReactNode } from "react";
+import { FormEvent, useEffect, useState } from "react";
 
-function App() {
+type RoomMode = "create" | "join";
+
+export default function HomePage() {
+  const router = useRouter();
+  const [isAuthed, setIsAuthed] = useState(false);
+  const [mode, setMode] = useState<RoomMode>("create");
+  const [roomName, setRoomName] = useState("");
+  const [roomPassword, setRoomPassword] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    setIsAuthed(Boolean(localStorage.getItem("token")));
+  }, []);
+
+  async function handleRoomSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setError("");
+
+    const token = localStorage.getItem("token");
+    if (!token) {
+      router.push("/signin");
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const endpoint = mode === "create" ? "/room" : "/room/join";
+      const res = await axios.post(
+        `${HTTP_BACKEND}${endpoint}`,
+        {
+          name: roomName,
+          password: roomPassword,
+        },
+        {
+          headers: {
+            Authorization: token,
+          },
+        },
+      );
+
+      router.push(`/canvas/${res.data.roomId}`);
+    } catch (err) {
+      const message = axios.isAxiosError(err)
+        ? err.response?.data?.message
+        : undefined;
+      setError(message ?? "Could not open that room. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function handleLogout() {
+    localStorage.removeItem("token");
+    setIsAuthed(false);
+  }
+
   return (
-    <div className="min-h-screen bg-background">
-      {/* Hero Section */}
-      <header className="relative overflow-hidden">
-        <div className="container mx-auto px-4 py-16 sm:px-6 lg:px-8">
-          <div className="text-center">
-            <h1 className="text-4xl font-bold tracking-tight sm:text-6xl text-foreground">
-              Collaborative Whiteboarding
-              <span className="text-primary block">Made Simple</span>
-            </h1>
-            <p className="mx-auto mt-6 max-w-2xl text-lg text-muted-foreground">
-              Create, collaborate, and share beautiful diagrams and sketches with our intuitive drawing tool. 
-              No sign-up required.
-            </p>
-            <div className="mt-10 flex items-center justify-center gap-x-6">
-              <Link href={"/signin"}>
-                <Button variant={"primary"} size="lg" className="h-12 px-6">
-                  Sign in
-                  <Pencil className="ml-2 h-4 w-4" />
-                </Button>
+    <main className="min-h-screen bg-zinc-950 text-white">
+      <nav className="mx-auto flex max-w-7xl items-center justify-between px-6 py-5">
+        <Link href="/" className="flex items-center gap-3 font-semibold">
+          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-sky-400 text-zinc-950">
+            <Pencil className="h-5 w-5" />
+          </span>
+          Excilidraw
+        </Link>
+
+        <div className="flex items-center gap-3">
+          {isAuthed ? (
+            <>
+              <Link
+                className="rounded-lg px-4 py-2 text-sm text-zinc-200 transition hover:bg-white/10"
+                href="/dashboard"
+              >
+                Dashboard
               </Link>
-              <Link href="/signup">
-                <Button variant="outline" size="lg" className="h-12 px-6">
-                  Sign up
-                </Button>
+              <button
+                className="rounded-lg border border-white/10 px-4 py-2 text-sm text-zinc-200 transition hover:bg-white/10"
+                onClick={handleLogout}
+              >
+                Logout
+              </button>
+            </>
+          ) : (
+            <>
+              <Link
+                className="rounded-lg px-4 py-2 text-sm text-zinc-200 transition hover:bg-white/10"
+                href="/signin"
+              >
+                Sign in
               </Link>
-            </div>
+              <Link
+                className="rounded-lg bg-sky-400 px-4 py-2 text-sm font-semibold text-zinc-950 transition hover:bg-sky-300"
+                href="/signup"
+              >
+                Sign up
+              </Link>
+            </>
+          )}
+        </div>
+      </nav>
+
+      <section className="mx-auto grid max-w-7xl gap-10 px-6 py-12 lg:grid-cols-[1.05fr_0.95fr] lg:py-20">
+        <div className="flex flex-col justify-center">
+          <div className="inline-flex w-fit items-center gap-2 rounded-full border border-sky-300/20 bg-sky-300/10 px-4 py-2 text-sm text-sky-200">
+            <ShieldCheck className="h-4 w-4" />
+            Authenticated private rooms
+          </div>
+
+          <h1 className="mt-8 max-w-3xl text-5xl font-bold leading-tight sm:text-6xl">
+            A fast collaborative canvas for ideas that need a room.
+          </h1>
+          <p className="mt-6 max-w-2xl text-lg leading-8 text-zinc-400">
+            Create password-protected whiteboards, invite teammates, sketch with
+            live sync, and keep every room available for your next session.
+          </p>
+
+          <div className="mt-10 grid max-w-2xl gap-4 sm:grid-cols-3">
+            <Feature icon={<Users2 />} title="Realtime" text="Everyone draws together." />
+            <Feature icon={<LockKeyhole />} title="Private" text="Rooms require login." />
+            <Feature icon={<Sparkles />} title="Polished" text="Shapes, text, colors." />
           </div>
         </div>
-      </header>
 
-      {/* Features Section */}
-      <section className="py-24 bg-muted/50">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 gap-12 sm:grid-cols-2 lg:grid-cols-3">
-            <Card className="p-6 border-2 hover:border-primary transition-colors">
-              <div className="flex items-center gap-4">
-                <div className="p-2 rounded-lg bg-primary/10">
-                  <Share2 className="h-6 w-6 text-primary" />
-                </div>
-                <h3 className="text-xl font-semibold">Real-time Collaboration</h3>
-              </div>
-              <p className="mt-4 text-muted-foreground">
-                Work together with your team in real-time. Share your drawings instantly with a simple link.
-              </p>
-            </Card>
-
-            <Card className="p-6 border-2 hover:border-primary transition-colors">
-              <div className="flex items-center gap-4">
-                <div className="p-2 rounded-lg bg-primary/10">
-                  <Users2 className="h-6 w-6 text-primary" />
-                </div>
-                <h3 className="text-xl font-semibold">Multiplayer Editing</h3>
-              </div>
-              <p className="mt-4 text-muted-foreground">
-                Multiple users can edit the same canvas simultaneously. See who's drawing what in real-time.
-              </p>
-            </Card>
-
-            <Card className="p-6 border-2 hover:border-primary transition-colors">
-              <div className="flex items-center gap-4">
-                <div className="p-2 rounded-lg bg-primary/10">
-                  <Sparkles className="h-6 w-6 text-primary" />
-                </div>
-                <h3 className="text-xl font-semibold">Smart Drawing</h3>
-              </div>
-              <p className="mt-4 text-muted-foreground">
-                Intelligent shape recognition and drawing assistance helps you create perfect diagrams.
-              </p>
-            </Card>
+        <section className="rounded-2xl border border-white/10 bg-zinc-900 p-6 shadow-2xl">
+          <div className="flex rounded-xl bg-zinc-950 p-1">
+            <ModeButton
+              active={mode === "create"}
+              icon={<Plus className="h-4 w-4" />}
+              label="Create room"
+              onClick={() => setMode("create")}
+            />
+            <ModeButton
+              active={mode === "join"}
+              icon={<LogIn className="h-4 w-4" />}
+              label="Join room"
+              onClick={() => setMode("join")}
+            />
           </div>
-        </div>
-      </section>
 
-      {/* CTA Section */}
-      <section className="py-24">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="bg-primary rounded-3xl p-8 sm:p-16">
-            <div className="mx-auto max-w-2xl text-center">
-              <h2 className="text-3xl font-bold tracking-tight text-primary-foreground sm:text-4xl">
-                Ready to start creating?
-              </h2>
-              <p className="mx-auto mt-6 max-w-xl text-lg text-primary-foreground/80">
-                Join thousands of users who are already creating amazing diagrams and sketches.
-              </p>
-              <div className="mt-10 flex items-center justify-center gap-x-6">
-                <Button size="lg" variant="secondary" className="h-12 px-6">
-                  Open Canvas
-                  <Pencil className="ml-2 h-4 w-4" />
-                </Button>
-                <Button variant="outline" size="lg" className="h-12 px-6 bg-transparent text-primary-foreground border-primary-foreground hover:bg-primary-foreground hover:text-primary">
-                  View Gallery
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Footer */}
-      <footer className="border-t">
-        <div className="container mx-auto px-4 py-12 sm:px-6 lg:px-8">
-          <div className="flex flex-col items-center justify-between gap-6 sm:flex-row">
-            <p className="text-sm text-muted-foreground">
-              © 2024 Excalidraw Clone. All rights reserved.
+          <div className="mt-8">
+            <h2 className="text-2xl font-semibold">
+              {mode === "create" ? "Create a new room" : "Join an existing room"}
+            </h2>
+            <p className="mt-2 text-sm text-zinc-400">
+              {mode === "create"
+                ? "Choose a room name and password. Only signed-in users can create it."
+                : "Enter the exact room name and password shared by the room owner."}
             </p>
-            <div className="flex space-x-6">
-              <a href="https://github.com" className="text-muted-foreground hover:text-primary">
-                <Github className="h-5 w-5" />
-              </a>
-              <a href="#" className="text-muted-foreground hover:text-primary">
-                <Download className="h-5 w-5" />
-              </a>
-            </div>
           </div>
-        </div>
-      </footer>
+
+          <form className="mt-6 space-y-4" onSubmit={handleRoomSubmit}>
+            <label className="block">
+              <span className="text-sm text-zinc-300">Room name</span>
+              <input
+                className="mt-2 w-full rounded-lg border border-white/10 bg-zinc-950 px-4 py-3 text-white outline-none ring-sky-400 transition focus:ring-2"
+                value={roomName}
+                onChange={(event) => setRoomName(event.target.value)}
+                placeholder="design-review"
+                required
+              />
+            </label>
+
+            <label className="block">
+              <span className="text-sm text-zinc-300">Room password</span>
+              <input
+                className="mt-2 w-full rounded-lg border border-white/10 bg-zinc-950 px-4 py-3 text-white outline-none ring-sky-400 transition focus:ring-2"
+                value={roomPassword}
+                onChange={(event) => setRoomPassword(event.target.value)}
+                placeholder="Room password"
+                type="password"
+                required
+              />
+            </label>
+
+            {error && (
+              <p className="rounded-lg border border-red-400/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+                {error}
+              </p>
+            )}
+
+            {!isAuthed && (
+              <p className="rounded-lg border border-amber-300/20 bg-amber-300/10 px-4 py-3 text-sm text-amber-100">
+                Please sign in before creating or joining a room.
+              </p>
+            )}
+
+            <button
+              className="flex w-full items-center justify-center gap-2 rounded-lg bg-sky-400 px-4 py-3 font-semibold text-zinc-950 transition hover:bg-sky-300 disabled:cursor-not-allowed disabled:opacity-60"
+              disabled={loading}
+              type="submit"
+            >
+              {loading ? "Opening room..." : mode === "create" ? "Create room" : "Join room"}
+              <ArrowRight className="h-4 w-4" />
+            </button>
+          </form>
+        </section>
+      </section>
+    </main>
+  );
+}
+
+function Feature({
+  icon,
+  title,
+  text,
+}: {
+  icon: ReactNode;
+  title: string;
+  text: string;
+}) {
+  return (
+    <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
+      <div className="text-sky-300">{icon}</div>
+      <h3 className="mt-3 font-semibold">{title}</h3>
+      <p className="mt-1 text-sm text-zinc-400">{text}</p>
     </div>
   );
 }
 
-export default App;
+function ModeButton({
+  active,
+  icon,
+  label,
+  onClick,
+}: {
+  active: boolean;
+  icon: ReactNode;
+  label: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      className={`flex flex-1 items-center justify-center gap-2 rounded-lg px-4 py-3 text-sm font-medium transition ${
+        active ? "bg-sky-400 text-zinc-950" : "text-zinc-300 hover:bg-white/10"
+      }`}
+      onClick={onClick}
+      type="button"
+    >
+      {icon}
+      {label}
+    </button>
+  );
+}

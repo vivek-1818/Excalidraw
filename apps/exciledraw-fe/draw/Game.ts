@@ -19,6 +19,7 @@ export class Game {
   private ctx: CanvasRenderingContext2D;
   private existingShapes: Shape[];
   private roomId: string;
+  private currentUserId: string;
   private clicked: boolean;
   private startX = 0;
   private startY = 0;
@@ -42,6 +43,7 @@ export class Game {
     canvas: HTMLCanvasElement,
     roomId: string,
     socket: WebSocket,
+    currentUserId: string,
     onColorChange?: (color: string) => void,
   ) {
     this.canvas = canvas;
@@ -49,6 +51,7 @@ export class Game {
     this.existingShapes = [];
     this.roomId = roomId;
     this.socket = socket;
+    this.currentUserId = currentUserId;
     this.onColorChange = onColorChange;
     this.clicked = false;
 
@@ -122,6 +125,10 @@ export class Game {
         this.upsertShape({
           ...parsedMessage,
           id: typeof message.id === "number" ? message.id : parsedMessage.id,
+          ownerId:
+            typeof message.userId === "string"
+              ? message.userId
+              : parsedMessage.ownerId,
         });
       } else if (message.type === "update_shape") {
         const parsedMessage = parseDrawMessage(message.message);
@@ -130,6 +137,10 @@ export class Game {
           this.upsertShape({
             ...parsedMessage,
             id: typeof message.id === "number" ? message.id : parsedMessage.id,
+            ownerId:
+              typeof message.userId === "string"
+                ? message.userId
+                : parsedMessage.ownerId,
           });
         }
       } else if (message.type === "erase") {
@@ -154,6 +165,7 @@ export class Game {
     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
     this.ctx.fillStyle = "rgba(0,0,0)";
     this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+    this.drawGrid();
 
     this.ctx.save();
     this.ctx.translate(-this.camera.x, -this.camera.y);
@@ -183,6 +195,7 @@ export class Game {
       ...shape,
       clientId: shape.clientId ?? crypto.randomUUID(),
       color: shape.color ?? this.currentColor,
+      ownerId: shape.ownerId ?? this.currentUserId,
     };
 
     this.existingShapes.push(shapeWithClientId);
@@ -191,11 +204,13 @@ export class Game {
   }
 
   eraseAt(x: number, y: number, broadcast = false) {
-    const erasedShapes = this.existingShapes.filter((shape) =>
-      isPointNearShape(x, y, shape, (text) => {
-        this.ctx.font = "20px sans-serif";
-        return this.ctx.measureText(text).width;
-      }),
+    const erasedShapes = this.existingShapes.filter(
+      (shape) =>
+        this.canEditShape(shape) &&
+        isPointNearShape(x, y, shape, (text) => {
+          this.ctx.font = "20px sans-serif";
+          return this.ctx.measureText(text).width;
+        }),
     );
 
     if (erasedShapes.length === 0) return false;
@@ -591,7 +606,7 @@ export class Game {
 
   updateSelectedShapeColor(color: string) {
     const selectedShape = this.getSelectedShape();
-    if (!selectedShape) return;
+    if (!selectedShape || !this.canEditShape(selectedShape)) return;
 
     const updatedShape = { ...selectedShape, color };
     this.upsertShape(updatedShape);
@@ -608,6 +623,36 @@ export class Game {
     this.ctx.setLineDash([6, 4]);
     drawShape(this.ctx, selectedShape, "#a7a2ff");
     this.ctx.setLineDash([]);
+    this.ctx.restore();
+  }
+
+  canEditShape(shape: Shape) {
+    return shape.ownerId === this.currentUserId;
+  }
+
+  drawGrid() {
+    const gridSize = 48;
+    const startX = -((this.camera.x % gridSize) + gridSize);
+    const startY = -((this.camera.y % gridSize) + gridSize);
+
+    this.ctx.save();
+    this.ctx.strokeStyle = "rgba(255, 255, 255, 0.035)";
+    this.ctx.lineWidth = 1;
+
+    for (let x = startX; x < this.canvas.width + gridSize; x += gridSize) {
+      this.ctx.beginPath();
+      this.ctx.moveTo(x, 0);
+      this.ctx.lineTo(x, this.canvas.height);
+      this.ctx.stroke();
+    }
+
+    for (let y = startY; y < this.canvas.height + gridSize; y += gridSize) {
+      this.ctx.beginPath();
+      this.ctx.moveTo(0, y);
+      this.ctx.lineTo(this.canvas.width, y);
+      this.ctx.stroke();
+    }
+
     this.ctx.restore();
   }
 }

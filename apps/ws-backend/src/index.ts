@@ -85,13 +85,15 @@ wss.on("connection", function connection(ws, request) {
         return;
       }
 
+      const ownedMessage = attachOwnerToShapeMessage(message, userId);
+
       let chatId: number;
 
       try {
         const chat = await prismaClient.chat.create({
           data: {
             roomId,
-            message,
+            message: ownedMessage,
             userId,
           },
         });
@@ -107,8 +109,9 @@ wss.on("connection", function connection(ws, request) {
             JSON.stringify({
               type: "chat",
               id: chatId,
-              message: message,
+              message: ownedMessage,
               roomId,
+              userId,
             }),
           );
         }
@@ -133,12 +136,34 @@ wss.on("connection", function connection(ws, request) {
         return;
       }
 
+      let deletedIds: number[] = [];
+
       try {
+        const ownedChats = await prismaClient.chat.findMany({
+          where: {
+            roomId,
+            userId,
+            id: {
+              in: ids,
+            },
+          },
+          select: {
+            id: true,
+          },
+        });
+
+        deletedIds = ownedChats.map((chat) => chat.id);
+
+        if (deletedIds.length === 0) {
+          return;
+        }
+
         await prismaClient.chat.deleteMany({
           where: {
             roomId,
+            userId,
             id: {
-              in: ids,
+              in: deletedIds,
             },
           },
         });
@@ -152,7 +177,7 @@ wss.on("connection", function connection(ws, request) {
           user.ws.send(
             JSON.stringify({
               type: "erase",
-              ids,
+              ids: deletedIds,
               roomId,
             }),
           );
@@ -173,16 +198,23 @@ wss.on("connection", function connection(ws, request) {
         return;
       }
 
+      const ownedMessage = attachOwnerToShapeMessage(message, userId);
+
       try {
-        await prismaClient.chat.updateMany({
+        const result = await prismaClient.chat.updateMany({
           where: {
             roomId,
             id,
+            userId,
           },
           data: {
-            message,
+            message: ownedMessage,
           },
         });
+
+        if (result.count === 0) {
+          return;
+        }
       } catch (e) {
         console.error("Failed to update shape message", e);
         return;
@@ -194,8 +226,9 @@ wss.on("connection", function connection(ws, request) {
             JSON.stringify({
               type: "update_shape",
               id,
-              message,
+              message: ownedMessage,
               roomId,
+              userId,
             }),
           );
         }
@@ -234,3 +267,19 @@ wss.on("connection", function connection(ws, request) {
     }
   });
 });
+
+function attachOwnerToShapeMessage(message: string, userId: string) {
+  try {
+    const parsed = JSON.parse(message);
+    if (!parsed || typeof parsed !== "object" || parsed.type === "erase") {
+      return message;
+    }
+
+    return JSON.stringify({
+      ...parsed,
+      ownerId: userId,
+    });
+  } catch {
+    return message;
+  }
+}

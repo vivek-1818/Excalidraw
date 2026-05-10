@@ -11,6 +11,10 @@ export function isShape(value: unknown): value is Shape {
     return false;
   }
 
+  if (shape.ownerId !== undefined && typeof shape.ownerId !== "string") {
+    return false;
+  }
+
   if (shape.type === "rect") {
     return (
       typeof shape.x === "number" &&
