@@ -5,13 +5,7 @@
         "outDir": "./dist",
         "composite": true,
         "incremental": true,
-        "declaration": true,
-        "baseUrl": ".",
-        "paths": {
-            "@repo/backend-common": ["../../packages/backend-common/dist/index.d.ts"],
-            "@repo/common": ["../../packages/common/dist/types.d.ts"],
-            "@repo/db": ["../../packages/db/dist/index.d.ts"]
-        }
+        "declaration": true
     },
     "references": [
         { "path": "../../packages/common" },

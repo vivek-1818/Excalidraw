@@ -1,7 +1,7 @@
 import WebSocket, { WebSocketServer } from "ws";
 import jwt, { JwtPayload } from "jsonwebtoken";
-import { JWT_SECRET } from "@repo/backend-common";
-import { prismaClient } from "@repo/db"
+import { JWT_SECRET } from "../../../packages/backend-common/dist/index.js";
+import { prismaClient } from "../../../packages/db/dist/index.js"
 
 const port = Number(process.env.PORT ?? 8080);
 const wss = new WebSocketServer({ port });
