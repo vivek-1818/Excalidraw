@@ -9,6 +9,9 @@
     "dev": "npm run build && npm run start"
   },
   "dependencies": {
+    "@repo/backend-common": "workspace:*",
+    "@repo/common": "workspace:*",
+    "@repo/db": "workspace:*",
     "bcrypt": "^6.0.0",
     "cloudinary": "^2.10.0",
     "express": "^5.2.1",
@@ -16,9 +19,6 @@
     "multer": "^2.1.1"
   },
   "devDependencies": {
-    "@repo/backend-common": "workspace:*",
-    "@repo/common": "workspace:*",
-    "@repo/db": "workspace:*",
     "@repo/typescript-config": "workspace:*",
     "@types/bcrypt": "^6.0.0",
     "@types/express": "^5.0.6",

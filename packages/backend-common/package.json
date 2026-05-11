@@ -5,6 +5,7 @@
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
+      "import": "./dist/index.js",
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     },
@@ -19,7 +20,7 @@
   },
   "dependencies": {
     "@types/node": "^22.15.3"
-  },
+  },  
   "devDependencies": {
     "@repo/typescript-config": "workspace:*"
   },

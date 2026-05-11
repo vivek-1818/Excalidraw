@@ -9,6 +9,7 @@
   },
   "exports": {
     ".": {
+      "import": "./dist/types.js",
       "types": "./dist/types.d.ts",
       "default": "./dist/types.js"
     },

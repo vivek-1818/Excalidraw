@@ -6,7 +6,7 @@
       "dependsOn": ["^build"],
       "inputs": ["$TURBO_DEFAULT$", ".env*", "package.json", "tsconfig.json", "tsconfig.*.json"],
       "outputs": ["dist/**", ".next/**", "!.next/cache/**"] 
-    },
+    },  
     "lint": {
       "dependsOn": ["^lint"]
     },
