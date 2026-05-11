@@ -46,3 +46,7 @@ pnpm-debug.log*
 # Misc
 .DS_Store
 *.pem
+
+!packages/backend-common/dist
+!packages/common/dist
+!packages/db/dist
