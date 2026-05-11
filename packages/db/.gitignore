@@ -3,6 +3,9 @@ node_modules
 .env
 !.env.example
 
+# Allow dist for internal packages
+!packages/*/dist
+
 /src/generated/prisma
 dist
 *.tsbuildinfo

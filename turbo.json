@@ -1,19 +1,19 @@
 {
-"$schema": "https://turborepo.dev/schema.json",
+  "$schema": "https://turborepo.dev/schema.json",
   "ui": "tui",
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
       "inputs": ["$TURBO_DEFAULT$", ".env*", "package.json", "tsconfig.json", "tsconfig.*.json"],
-      "outputs": ["dist/**", ".next/**", "!.next/cache/**"] 
-    },  
-    "lint": {
-      "dependsOn": ["^lint"]
+      "outputs": ["dist/**", ".next/**", "!.next/cache/**"]
     },
-    "check-types": {
-      "dependsOn": ["^check-types"]
+    "@repo/backend-common#build": {
+      "dependsOn": ["^build"],
+      "outputs": ["dist/**"]
     },
-  "dev": {
+    "lint": { "dependsOn": ["^lint"] },
+    "check-types": { "dependsOn": ["^check-types"] },
+    "dev": {
       "dependsOn": ["^build"],
       "cache": false,
       "persistent": true
