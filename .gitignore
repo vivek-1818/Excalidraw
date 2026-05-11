@@ -1,5 +1,6 @@
 # Dependencies
 node_modules
+apps/*/node_modules
 .pnp
 .pnp.js
 
@@ -23,6 +24,7 @@ coverage
 
 # Build Outputs (apps only, not packages)
 .next/
+apps/*/.next
 out/
 build
 apps/*/dist
