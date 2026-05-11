@@ -1,5 +1,6 @@
 {
-  "installCommand": "corepack enable && corepack prepare pnpm@8.15.6 --activate && pnpm install --no-frozen-lockfile",
-  "buildCommand": "pnpm turbo build --filter=exciledraw-fe",
+  "installCommand": "pnpm install --no-frozen-lockfile",
+  "buildCommand": "pnpm turbo build --filter=excelidraw-frontend",
+  "outputDirectory": "apps/exciledraw-fe/.next",
   "framework": "nextjs"
 }
