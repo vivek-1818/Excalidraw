@@ -6,13 +6,7 @@
         "composite": true,
         "incremental": true,
         "declaration": true,
-        "skipLibCheck": true,
-        "baseUrl": ".",
-        "paths": {
-            "@repo/backend-common": ["../../packages/backend-common/src/index.ts"],
-            "@repo/common": ["../../packages/common/src/types.ts"],
-            "@repo/db": ["../../packages/db/src/index.ts"]
-        }
+        "skipLibCheck": true
     },
     "references": [
         { "path": "../../packages/common" },
