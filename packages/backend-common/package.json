@@ -2,9 +2,12 @@
   "name": "@repo/backend-common",
   "version": "1.0.0",
   "main": "./dist/index.js",
-  "types": "./src/index.ts",
+  "types": "./dist/index.d.ts",
   "exports": {
-    "./config": "./dist/index.js"
+    "./config": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
   },
   "scripts": {
     "build": "tsc -b",
