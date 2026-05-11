@@ -50,3 +50,6 @@ pnpm-debug.log*
 !packages/backend-common/dist
 !packages/common/dist
 !packages/db/dist
+
+!packages/db/dist
+!packages/db/dist/generated
