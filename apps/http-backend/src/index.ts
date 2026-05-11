@@ -1,6 +1,6 @@
 import express from "express";
 import jwt from "jsonwebtoken";
-import { JWT_SECRET } from "@repo/backend-common/config";
+import { JWT_SECRET } from "@repo/backend-common";
 import { middleware } from "./middleware.js";
 import { v2 as cloudinary } from "cloudinary";
 import fs from "fs";
@@ -11,8 +11,8 @@ import {
   JoinRoomSchema,
   SigninSchema,
   CreateRoomSchema,
-} from "@repo/common/types";
-import { prismaClient } from "@repo/db/client";
+} from "@repo/common";
+import { prismaClient } from "@repo/db";
 import bcrypt from "bcrypt";
 
 loadLocalEnv();
