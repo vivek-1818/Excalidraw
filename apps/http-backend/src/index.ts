@@ -106,7 +106,7 @@ app.post("/signin", async (req, res) => {
   const isMatch = await bcrypt.compare(data.data.password, user.password);
 
   if (!isMatch) {
-    res.json({
+    res.status(403).json({
       message: "Incorrect Credentials",
     });
     return;

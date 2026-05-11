@@ -35,6 +35,11 @@ export function AuthPage({isSignin}: {
                 password,
             });
 
+            if (!res.data.token) {
+                setError(res.data.message ?? "Incorrect credentials.");
+                return;
+            }
+
             localStorage.setItem("token", res.data.token);
             router.push("/");
         } catch (err) {
