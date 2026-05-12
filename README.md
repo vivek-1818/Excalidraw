@@ -39,7 +39,7 @@ exciledraw/
 
 ---
 
-## 🚀 Getting Started
+## Getting Started
 
 ### Prerequisites
 
@@ -72,7 +72,7 @@ Turborepo handles dependency-aware builds across all apps and packages.
 
 ---
 
-## ☁️ Deployment
+##  Deployment
 
 Deployed on **Vercel** as a monorepo. Key settings:
 
