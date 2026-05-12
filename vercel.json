@@ -1,6 +1,5 @@
 {
-  "installCommand": "pnpm install --no-frozen-lockfile",
-  "buildCommand": "pnpm turbo build --filter=excelidraw-frontend",
-  "outputDirectory": "apps/exciledraw-fe/.next",
+  "buildCommand": "cd ../.. && pnpm turbo build --filter=excelidraw-frontend",
+  "installCommand": "cd ../.. && pnpm install --no-frozen-lockfile",
   "framework": "nextjs"
 }
