@@ -60,7 +60,7 @@ pnpm install
 pnpm dev
 ```
 
-Frontend runs at [http://localhost:3000](http://localhost:3000)
+Frontend runs at [http://localhost:3001](http://localhost:3001)
 
 ### Build
 
