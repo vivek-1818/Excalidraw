@@ -1,4 +1,4 @@
-# Exciledraw
+# Excalidraw
 
 A fast collaborative canvas for ideas that need a room. Built on top of Excalidraw with real-time collaboration, password-protected rooms, and persistent sessions.
 
@@ -20,17 +20,21 @@ A fast collaborative canvas for ideas that need a room. Built on top of Excalidr
 |---|---|
 | Frontend | Next.js 15, TypeScript, Tailwind CSS |
 | Canvas | Excalidraw |
+| HTTP Backend | Node.js (http-backend) |
+| WebSocket Backend | Node.js (ws-backend) |
 | Monorepo | Turborepo + pnpm workspaces |
-| Deployment | Vercel |
+| Deployment | Vercel (frontend) |
 
 ---
 
 ## 📁 Monorepo Structure
 
 ```
-exciledraw/
+Excalidraw/
 ├── apps/
-│   └── exciledraw-fe/        # Next.js frontend (deployed to Vercel)
+│   ├── exciledraw-fe/        # Next.js frontend (deployed to Vercel)
+│   ├── http-backend/         # REST API server
+│   └── ws-backend/           # WebSocket server for real-time sync
 ├── packages/
 │   └── backend-common/       # Shared backend utilities
 ├── turbo.json
@@ -39,7 +43,7 @@ exciledraw/
 
 ---
 
-## Getting Started
+## 🚀 Getting Started
 
 ### Prerequisites
 
@@ -50,17 +54,23 @@ exciledraw/
 
 ```bash
 # Clone
-git clone https://github.com/vivekbiradar/exciledraw.git
-cd exciledraw
+git clone https://github.com/vivek-1818/Excalidraw.git
+cd Excalidraw
 
-# Install
+# Install all dependencies
 pnpm install
 
-# Dev
+# Run all apps in dev mode
 pnpm dev
 ```
 
-Frontend runs at [http://localhost:3001](http://localhost:3001)
+| App | URL |
+|---|---|
+| Frontend | http://localhost:3000 |
+| HTTP Backend | http://localhost:3001 |
+| WebSocket Backend | ws://localhost:8080 |
+
+> Ports may vary based on your `.env` config.
 
 ### Build
 
@@ -68,28 +78,10 @@ Frontend runs at [http://localhost:3001](http://localhost:3001)
 pnpm build
 ```
 
-Turborepo handles dependency-aware builds across all apps and packages.
-
----
-
-##  Deployment
-
-Deployed on **Vercel** as a monorepo. Key settings:
-
-| Setting | Value |
-|---|---|
-| Root Directory | `apps/exciledraw-fe` |
-| Output Directory | `.next` |
-| Build Command | `cd ../.. && npx turbo run build --filter=exciledraw-fe` |
-
-`turbo.json` is configured with correct outputs for Vercel's remote cache:
-
-```json
-"outputs": ["dist/**", ".next/**", "!.next/cache/**"]
-```
+Turborepo builds all apps in the correct dependency order.
 
 ---
 
 ## 📄 License
 
-MIT © Vivek Biradar
+MIT © [vivek-1818](https://github.com/vivek-1818)
